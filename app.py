@@ -6,7 +6,7 @@ from PIL import Image
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Análise de Folhas", page_icon="🌿", layout="centered")
 
-# --- DICIONÁRIO DE TRADUÇÃO DAS DOENÇAS (Modelo 04) ---
+# --- DICIONÁRIO DE TRADUÇÃO DAS DOENÇAS ---
 # A ordem deve ser estritamente alfabética, correspondendo ao class_indices do gerador
 CLASSES_DOENCAS = {
     0: "Pimentão - Mancha Bacteriana",
@@ -72,7 +72,6 @@ st.markdown("""
 # --- CARREGAMENTO DOS MODELOS EM CASCATA ---
 @st.cache_resource
 def load_system():
-    # Atualizado com os nomes exatos do seu print de diretório
     m1_ident = tf.keras.models.load_model('modelo_01_planta_ou_nao.keras')
     m2_health = tf.keras.models.load_model('modelo_02_saudavel_ou_doente.keras')
     m4_disease = tf.keras.models.load_model('modelo_03_multiclasse.keras')
@@ -89,7 +88,8 @@ st.markdown('<div class="main-card">', unsafe_allow_html=True)
 arquivo = st.file_uploader("", type=["jpg", "jpeg", "png"])
 
 if arquivo:
-    img = Image.open(arquivo)
+    # A conversão para RGB previne erros com imagens PNG que tenham fundo transparente
+    img = Image.open(arquivo).convert('RGB')
     st.image(img, use_container_width=True, output_format="PNG")
     
     # Preparação da Imagem
@@ -131,20 +131,22 @@ if arquivo:
         # ==========================================
         p_health = m_health.predict(img_array, verbose=0)[0][0]
         
-        if p_health < 0.5:
-            # SAUDÁVEL (Para o processamento aqui)
-            st.markdown("""
+        # Lógica corrigida: 0 = Doente / 1 = Saudável
+        if p_health >= 0.5:
+            # SAUDÁVEL (Mais próximo de 1)
+            conf_h = p_health * 100
+            st.markdown(f"""
                 <div class="result-box">
                     <div class="result-icon">🌿</div>
                     <div>
                         <div class="result-text-main">Folha Saudável</div>
-                        <div class="result-text-sub">Nenhuma anomalia detectada.</div>
+                        <div class="result-text-sub">Nenhuma anomalia detectada (Confiança: {conf_h:.1f}%).</div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
         else:
-            # DOENTE -> Continua para o passo 3
-            conf_h = p_health * 100
+            # DOENTE (Mais próximo de 0) -> Continua para o passo 3
+            conf_h = (1 - p_health) * 100 
             st.markdown(f"""
                 <div class="result-box warning">
                     <div class="result-icon">⚠️</div>
@@ -156,7 +158,7 @@ if arquivo:
             """, unsafe_allow_html=True)
 
             # ==========================================
-            # CASCATA PASSO 3: DIAGNÓSTICO (Modelo 04)
+            # CASCATA PASSO 3: DIAGNÓSTICO (Modelo Multiclasse)
             # ==========================================
             pred_disease = m_disease.predict(img_array, verbose=0)[0]
             indice_doenca = np.argmax(pred_disease) # Pega o índice da maior probabilidade
@@ -174,8 +176,8 @@ if arquivo:
                 </div>
             """, unsafe_allow_html=True)
 
-    st.write("") 
-    if st.button("Analisar Outra Imagem"):
-        st.rerun()
+st.write("") 
+if st.button("Analisar Outra Imagem"):
+    st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)
