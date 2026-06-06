@@ -73,7 +73,7 @@ st.markdown("""
 # Este bloco puxa os pesos treinados para a memória
 @st.cache_resource
 def load_system():
-    m1_ident = tf.keras.models.load_model('modelo_01_planta_ou_nao.keras')
+    m1_ident = tf.keras.models.load_model('modelo_01_identificacao_v2_mix.keras')
     m2_health = tf.keras.models.load_model('modelo_02_saudavel_ou_doente.keras')
     m4_disease = tf.keras.models.load_model('modelo_03_multiclasse.keras')
     return m1_ident, m2_health, m4_disease
